@@ -1,4 +1,4 @@
-function [] = SNR_tester(target_Snr,frac,x)
+function [] = edge_tester(target_Snr,frac,x)
 
 if frac == 0
 load('DATASET1_1_TEST/mat_ax.mat','waveform_ax');
@@ -22,9 +22,6 @@ if frac == 1
 
 end
 
-%method-2
-%total_B = 40e6;
-%signal_B = 20e6;
 new_Snr = target_Snr;%(target_Snr - 20*log10(total_B/signal_B));
 %waveform = apply_AWGN(new_Snr, waveform);
 waveform = awgn(waveform,new_Snr);
@@ -40,40 +37,29 @@ szeropad = [zeros(1,nwin) waveform1 zeros(1,nwin)];
 szeropad = szeropad';
 [S, ~, ~] = stft(szeropad,Fs,'Window',win,'OverlapLength',stride);
 
-SClean = S;
-[row_low, col] = size(SClean(1:50,:));
-[row_high, ~] = size(SClean(205:end,:));
 
-%method-1 of attenuation
-noise_low = randn(row_low, col) + 1i .* randn(row_low, col);
-noise_high = randn(row_high, col) + 1i .* randn(row_high, col);
+% S_smooth = medfilt2(abs(S), [3 3]);
+% S_smooth = abs(S);
 
-%method-1 of attenuation
-%noise_low = zeros(row_low, col);% + 1i .* zeros(row_low, col);
-%noise_high = zeros(row_high, col);% + 1i .* zeros(row_high, col);
+S_mag_dB = abs(S);
+filt= medfilt2(S_mag_dB,[3,3]);
+edge_S = edge(filt, 'canny',[0.35,0.48]); 
+% edge_S = edge(edge_S, 'log');
 
-%method-1 of awgn addtion 
-%noise_low = apply_AWGN(new_Snr, noise_low);
-%noise_high = apply_AWGN(new_Snr, noise_high);
+S_selected = zeros(size(S));
 
-%method-2 of awgn addition
+[row, col] = find(edge_S == 1);
 
-noise_low = awgn(noise_low,new_Snr);
-noise_high = awgn(noise_high,new_Snr);
+for i = 1:length(row)
+    S_selected(row(i), col(i)) = S(row(i), col(i));
+end
 
-
-SClean(1:50,:) = noise_low;
-SClean(205:end,:) = noise_high;
-
-
-
-[signalReconClean, ~] = stftRecon(SClean, Fs, win, nwin, stride);
+[signalReconClean, ~] = stftRecon(S_selected, Fs, win, nwin, stride);
 waveform = resample(signalReconClean,1,2);%1,2
-plot(abs(waveform));
-%waveform = repmat(waveform,5,1);
 
-% save("DATASET1_1_TEST/802_11ax/802.11ax_IQ_frame_1.mat","waveform");
+save("DATASET1_1_TEST/802_11ax/802.11ax_IQ_frame_1.mat","waveform");
 %clear;
 %load("DATASET1_1_TEST/802_11ax/802.11ax_IQ_frame_1.mat","waveform");
 
 end
+

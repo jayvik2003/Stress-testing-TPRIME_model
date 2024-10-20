@@ -10,7 +10,7 @@
 %     noisy_sig = sig + noise_samples;
 % end
 
-function noisy_sig = apply_AWGN(snr_dbs, sig)
+function noisy_sig = apply_AWGN(sig, snr_dbs)
     % Compute the RMS of the signal
     rms = sqrt(mean(abs(sig).^2));
     sig_W = rms.^2;

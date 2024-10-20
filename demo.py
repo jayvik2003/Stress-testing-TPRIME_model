@@ -19,7 +19,7 @@ TRANS_PATH = '../TPrime_transformer/model_cp'
 PROTOCOLS = ['802_11ax', '802_11b_upsampled', '802_11n', '802_11g']
 CHANNELS = ['None']
 pp = ['802_11ax']
-SNR = [-10]
+SNR = [0]
 SN = [0]
 np.random.seed(4389)
 

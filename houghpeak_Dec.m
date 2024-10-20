@@ -1,0 +1,95 @@
+% Load data
+% load('DATASET1_1_TEST/mat_ax.mat', 'waveform_ax');
+% waveform = waveform_ax';
+% w = wavform(1:6800);
+% waveform = [zeros(1,2000) waveform(1:6800) zeros(1,2000) zeros(1,2000) waveform(1:6800) zeros(1,2000)];
+waveform = fadedSignal_ric';
+% Signal and Noise Parameters
+total_B = 40e6;  % Total bandwidth
+signal_B = 20e6;  % Signal bandwidth
+target_snr = 0;  % Target SNR in dB
+% new_SNR = target_snr - 10 * log10(total_B / signal_B);  % Adjusted SNR based on bandwidth
+
+% Apply AWGN to the resampled signal
+waveform1 = resample(waveform, 2, 1);
+% waveform1 = apply_AWGN(waveform1, new_SNR);  % Add white Gaussian noise
+
+% STFT Parameters
+fs = 20e6;  % Sampling frequency
+nwin = 256;  % Window size
+overlap = ceil(nwin *0.55);  % Overlap between windows
+% win = rectwin(nwin);  % Hann window
+win = gausswin(nwin);
+% Zero-padding and compute STFT
+szeropad = [zeros(1, nwin), waveform1, zeros(1, nwin)]';
+[S, ~, ~] = stft(szeropad, fs, 'Window', win, 'OverlapLength', overlap);
+
+% Step 1: Generate or input a 2D matrix
+matrix = (abs(S)); % Example: A matrix representing STFT magnitude
+
+% Step 2: Filter the input 2D matrix to reduce false alarms (Gaussian filter)
+% filtered_matrix = imgaussfilt(matrix); % Adjust sigma value for filtering
+
+% Apply Wiener filter to the spectrogram
+filtered_matrix = wiener2(matrix,[3 3]); % Adjust window size as needed
+
+
+% filtered_matrix = matrix;  % Keeping the filtered matrix same for now
+
+% Step 3: Edge detection
+edges = edge(filtered_matrix, 'canny', [0.35, 0.45]);  % Canny edge detection
+ % edges = edge(edges, "sobel");  % Sobel edge detection
+
+% Step 4: Apply the Hough Transform (HT) to the edge-detected matrix
+[H, theta, rho] = hough(edges);
+
+% Step 5: Find peaks in the Hough transform
+num_peaks = 20;  % Number of peaks to find
+peaks = houghpeaks(H, num_peaks, 'Threshold', ceil(0.5 * min(H(:))));  % Adjust threshold
+
+% Step 6: Extract lines using Hough lines algorithm
+lines = houghlines(edges, theta, rho, peaks, 'FillGap', 5, 'MinLength', 7);
+
+% Display the results
+figure;
+
+% Plot the original 2D matrix (STFT magnitude)
+subplot(2,2,1);
+imagesc(matrix); 
+title('Original 2D Matrix');
+colorbar;
+xlabel('Time ');
+ylabel('Frequency ');
+
+% Plot the filtered 2D matrix
+subplot(2,2,2);
+imagesc(filtered_matrix); 
+title('Filtered 2D Matrix');
+colorbar;
+xlabel('Time ');
+ylabel('Frequency ');
+
+% Plot the Canny edges with Hough lines
+subplot(2,2,3);
+imshow(edges); 
+hold on;
+
+% Plot the lines on the edges
+for k = 1:length(lines)
+    xy = [lines(k).point1; lines(k).point2]; % Get line endpoints
+    plot(xy(:,1), xy(:,2), 'LineWidth', 2, 'Color', 'red'); % Plot lines
+end
+title('Edge Detection with Hough Lines');
+
+% Plot the Hough transform with detected peaks
+subplot(2,2,4);
+imshow(imadjust(rescale(H)), 'XData', theta, 'YData', rho, ...
+      'InitialMagnification', 'fit');
+title('Hough Transform with Peaks');
+xlabel('\theta (degrees)');
+ylabel('\rho (pixels)');
+axis on, axis normal;
+hold on;
+plot(theta(peaks(:, 2)), rho(peaks(:, 1)), 's', 'color', 'red');  % Mark peaks on HT
+hold off;
+
